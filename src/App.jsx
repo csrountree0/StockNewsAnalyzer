@@ -2,6 +2,7 @@ import { useState } from 'react'
 import './App.css'
 import { fetchStockPrice } from './api/stockPriceApi'
 import { fetchNews } from './api/newsApi'
+import StockChart from './components/StockChart'
 
 function App() {
   const [isDark, setIsDark] = useState(true)
@@ -145,10 +146,14 @@ function App() {
             <div className={`border-2 border-dashed rounded-lg ${
               isDark ? 'border-gray-600' : 'border-gray-300'
             }`}>
-              <div className="h-[300px] sm:h-[400px] md:h-[500px] lg:h-[600px] w-full flex items-center justify-center">
-                <p className={`text-center text-sm sm:text-base ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  {stockData ? `${ticker} Stock Price History` : 'Stock price chart will appear here'}
-                </p>
+              <div className="h-[300px] sm:h-[400px] md:h-[500px] lg:h-[600px] w-full">
+                {stockData ? (
+                  <StockChart data={stockData} ticker={ticker} />
+                ) : (
+                  <p className={`text-center text-sm sm:text-base ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Stock price chart will appear here
+                  </p>
+                )}
               </div>
             </div>
 
