@@ -1,8 +1,60 @@
 import { useState } from 'react'
 import './App.css'
+import { fetchStockPrice } from './api/stockPriceApi'
+import { fetchNews } from './api/newsApi'
 
 function App() {
   const [isDark, setIsDark] = useState(true)
+  const [ticker, setTicker] = useState('')
+  const [date, setDate] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [errors, setErrors] = useState({ ticker: '', date: '' })
+  const [stockData, setStockData] = useState(null)
+  const [newsData, setNewsData] = useState([])
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    const newErrors = { ticker: '', date: '' }
+    
+    if (!ticker.trim()) {
+      newErrors.ticker = 'Stock ticker is required'
+    }
+    if (!date) {
+      newErrors.date = 'Date is required'
+    }
+
+    if (newErrors.ticker || newErrors.date) {
+      setErrors(newErrors)
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      // calculate date ranges
+      const endDate = new Date(date)
+      const startDate = new Date(date)
+      startDate.setDate(startDate.getDate() - 5) // get price and news 5 days prior for better visualization
+      const oneYearLater = new Date(date)
+      oneYearLater.setFullYear(oneYearLater.getFullYear() + 1)
+
+      // fetch stock prices and news
+      const [stockResult, newsResult] = await Promise.all([
+        fetchStockPrice(ticker, startDate, oneYearLater),
+        fetchNews(ticker, startDate, endDate)
+      ]);
+      setStockData(stockResult)
+      setNewsData(newsResult)
+      setErrors({ ticker: '', date: '' })
+    } catch (error) {
+      console.error('Error:', error)
+      setErrors(prev => ({
+        ...prev,
+        ticker: error.message || 'Error fetching data. Please check the ticker symbol.'
+      }))
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   return (
     <div className={`min-h-screen ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
@@ -30,7 +82,7 @@ function App() {
       <main className="max-w-5xl mx-auto py-4 px-3 sm:py-6 sm:px-4 lg:px-8">
         {/* Search Form */}
         <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} shadow rounded-lg p-4 sm:p-6 mb-4 sm:mb-6`}>
-          <form className="space-y-3 sm:space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
             <div className="grid grid-cols-1 gap-3 sm:gap-4">
               <div>
                 <label htmlFor="ticker" className={`block text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -39,11 +91,19 @@ function App() {
                 <input
                   type="text"
                   id="ticker"
+                  value={ticker}
+                  onChange={(e) => {
+                    setTicker(e.target.value.toUpperCase())
+                    setErrors(prev => ({ ...prev, ticker: '' }))
+                  }}
                   placeholder="e.g. AAPL"
                   className={`mt-1 block w-full rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm ${
                     isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'
-                  }`}
+                  } ${errors.ticker ? 'border-red-500' : ''}`}
                 />
+                {errors.ticker && (
+                  <p className="mt-1 text-sm text-red-500">{errors.ticker}</p>
+                )}
               </div>
               <div>
                 <label htmlFor="date" className={`block text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -52,19 +112,28 @@ function App() {
                 <input
                   type="date"
                   id="date"
+                  value={date}
+                  onChange={(e) => {
+                    setDate(e.target.value)
+                    setErrors(prev => ({ ...prev, date: '' }))
+                  }}
                   className={`mt-1 block w-full rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm [&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:cursor-pointer ${
                     isDark 
                       ? 'bg-gray-700 border-gray-600 text-white [&::-webkit-calendar-picker-indicator]:invert' 
                       : 'bg-white border-gray-300'
-                  }`}
+                  } ${errors.date ? 'border-red-500' : ''}`}
                 />
+                {errors.date && (
+                  <p className="mt-1 text-sm text-red-500">{errors.date}</p>
+                )}
               </div>
             </div>
             <button
               type="submit"
-              className="cursor-pointer w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800"
+              disabled={isLoading}
+              className="cursor-pointer w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Analyze News Impact
+              {isLoading ? 'Analyzing...' : 'Analyze News Impact'}
             </button>
           </form>
         </div>
@@ -78,7 +147,7 @@ function App() {
             }`}>
               <div className="h-[300px] sm:h-[400px] md:h-[500px] lg:h-[600px] w-full flex items-center justify-center">
                 <p className={`text-center text-sm sm:text-base ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Stock price chart will appear here
+                  {stockData ? `${ticker} Stock Price History` : 'Stock price chart will appear here'}
                 </p>
               </div>
             </div>
@@ -87,9 +156,40 @@ function App() {
             <div>
               <h2 className={`text-lg sm:text-xl font-semibold mb-3 sm:mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>Related News Articles</h2>
               <div className="space-y-3 sm:space-y-4">
-                <p className={`text-center text-sm sm:text-base ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  No news articles available
-                </p>
+                {newsData.length > 0 ? (
+                  newsData.map((article, index) => (
+                    <div 
+                      key={index}
+                      className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${
+                        isDark ? 'border-gray-700 bg-gray-700' : 'border-gray-200'
+                      }`}
+                    >
+                      <h3 className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        <a 
+                          href={article.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="hover:text-blue-500 transition-colors"
+                        >
+                          {article.headline}
+                        </a>
+                      </h3>
+                      <p className={`mt-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {article.summary}
+                      </p>
+                      <div className={`mt-2 flex items-center text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        <span>Published: </span>
+                        <span className="ml-1">{new Date(article.datetime * 1000).toLocaleDateString()}</span>
+                        <span className="mx-2">•</span>
+                        <span>Source: {article.source}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className={`text-center text-sm sm:text-base ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    No news articles available
+                  </p>
+                )}
               </div>
             </div>
           </div>
