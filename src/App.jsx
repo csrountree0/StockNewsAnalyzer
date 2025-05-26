@@ -44,7 +44,10 @@ function App() {
         fetchNews(ticker, endDate, endDate)
       ]);
       setStockData(stockResult)
-      setNewsData(newsResult)
+      setNewsData(newsResult.map(article => ({
+        ...article,
+        sentimentLabel: parseInt(Math.random() * 3) === 0 ? "Bullish" : parseInt(Math.random() * 3) === 1 ? "Neutral" : "Bearish"
+      })))
       console.log(newsResult)
       setErrors({ ticker: '', date: '' })
     } catch (error) {
@@ -182,6 +185,15 @@ function App() {
                         >
                           {article.headline}
                         </a>
+                        <span className={`px-2 py-1 rounded-full ${
+                          article.sentimentLabel === 'Bullish' 
+                            ? 'text-green-500'
+                            : article.sentimentLabel === 'Neutral'
+                              ? 'text-orange-400'
+                              : 'text-red-600'
+                        }`}>
+                          {article.sentimentLabel}
+                        </span>
                       </h3>
                       <p className={`mt-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                         {article.summary}
