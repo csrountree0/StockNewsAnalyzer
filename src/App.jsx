@@ -12,6 +12,7 @@ function App() {
   const [errors, setErrors] = useState({ ticker: '', date: '' })
   const [stockData, setStockData] = useState(null)
   const [newsData, setNewsData] = useState([])
+  const [sortBy, setSortBy] = useState('all')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -43,13 +44,36 @@ function App() {
         fetchStockPrice(ticker, startDate, oneYearLater),
         fetchNews(ticker, endDate, endDate)
       ]);
+
+      // fetch sentiment scores for each article
+      /*
+         Since i dont have access to the full article i just use
+         the headline and summary
+      */
+      const inputs = newsResult.map(article => `${article.headline} ${article.summary}`);
+      const sentimentResponse = await fetch('https://snahelper.colbyr416-927.workers.dev/api/sentiment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          inputs: inputs
+        })
+      });
+
+      let sentimentScores = await sentimentResponse.json();
+      sentimentScores = JSON.parse(JSON.stringify(sentimentScores));
+
+
       setStockData(stockResult)
-      setNewsData(newsResult.map(article => ({
+      // add 2 new elements for the label and score and sort them by confidence
+      setNewsData(newsResult.map((article, i) => ({
         ...article,
-        sentimentLabel: parseInt(Math.random() * 3) === 0 ? "Bullish" : parseInt(Math.random() * 3) === 1 ? "Neutral" : "Bearish"
-      })))
-      console.log(newsResult)
-      setErrors({ ticker: '', date: '' })
+        sentimentLabel: sentimentScores[0][i].label,
+        sentimentConfidence: sentimentScores[0][i].score
+      })).sort((a, b) => b.sentimentConfidence - a.sentimentConfidence));
+      // remove any previous errors
+      setErrors({ ticker: '', date: '' });
     } catch (error) {
       console.error('Error:', error)
       setErrors(prev => ({
@@ -166,10 +190,26 @@ function App() {
 
             {/* News Articles Section */}
             <div>
-              <h2 className={`text-lg sm:text-xl font-semibold mb-3 sm:mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>Related News Articles</h2>
-              <div className="space-y-3 sm:space-y-4">
-                {newsData.length > 0 ? (
-                  newsData.map((article, index) => (
+              <div className="flex justify-between items-center mb-3 sm:mb-4">
+                <h2 className={`text-lg sm:text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Related News Articles</h2>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className={`rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm ${
+                    isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'
+                  }`}
+                >
+                  <option value="all">All Sentiments</option>
+                  <option value="positive">Positive</option>
+                  <option value="neutral">Neutral</option>
+                  <option value="negative">Negative</option>
+                </select>
+              </div>
+              <div className="space-y-3 sm:space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                {newsData
+                  .filter(article => sortBy === 'all' || article.sentimentLabel === sortBy)
+                  .sort((a, b) => b.sentimentConfidence - a.sentimentConfidence)
+                  .map((article, index) => (
                     <div 
                       key={index}
                       className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${
@@ -186,13 +226,13 @@ function App() {
                           {article.headline}
                         </a>
                         <span className={`px-2 py-1 rounded-full ${
-                          article.sentimentLabel === 'Bullish' 
+                          article.sentimentLabel === 'positive' 
                             ? 'text-green-500'
-                            : article.sentimentLabel === 'Neutral'
+                            : article.sentimentLabel === 'neutral'
                               ? 'text-orange-400'
                               : 'text-red-600'
                         }`}>
-                          {article.sentimentLabel}
+                          {article.sentimentLabel} ({(article.sentimentConfidence * 100).toFixed(2)}%)
                         </span>
                       </h3>
                       <p className={`mt-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -206,11 +246,7 @@ function App() {
                       </div>
                     </div>
                   ))
-                ) : (
-                  <p className={`text-center text-sm sm:text-base ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    No news articles available
-                  </p>
-                )}
+                }
               </div>
             </div>
           </div>
