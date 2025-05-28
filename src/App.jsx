@@ -6,7 +6,8 @@ import StockChart from './components/StockChart'
 
 function App() {
   const [isDark, setIsDark] = useState(true)
-  const [ticker, setTicker] = useState('')
+  const [tickerInput, setTickerInput] = useState('')
+  const [submittedTicker, setSubmittedTicker] = useState('')
   const [date, setDate] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState({ ticker: '', date: '' })
@@ -18,7 +19,7 @@ function App() {
     e.preventDefault()
     const newErrors = { ticker: '', date: '' }
     
-    if (!ticker.trim()) {
+    if (!tickerInput.trim()) {
       newErrors.ticker = 'Stock ticker is required'
     }
     if (!date) {
@@ -41,8 +42,8 @@ function App() {
 
       // fetch stock prices and news
       const [stockResult, newsResult] = await Promise.all([
-        fetchStockPrice(ticker, startDate, oneYearLater),
-        fetchNews(ticker, endDate, endDate)
+        fetchStockPrice(tickerInput, startDate, oneYearLater),
+        fetchNews(tickerInput, endDate, endDate)
       ]);
 
       // fetch sentiment scores for each article
@@ -81,6 +82,7 @@ function App() {
         ticker: error.message || 'Error fetching data. Please check the ticker symbol.'
       }))
     } finally {
+      setSubmittedTicker(tickerInput)
       setIsLoading(false)
     }
   }
@@ -123,9 +125,9 @@ function App() {
                 <input
                   type="text"
                   id="ticker"
-                  value={ticker}
+                  value={tickerInput}
                   onChange={(e) => {
-                    setTicker(e.target.value.toUpperCase())
+                    setTickerInput(e.target.value.toUpperCase())
                     setErrors(prev => ({ ...prev, ticker: '' }))
                   }}
                   placeholder="e.g. AAPL"
@@ -177,9 +179,9 @@ function App() {
             <div className={`border-2 border-dashed rounded-lg ${
               isDark ? 'border-gray-600' : 'border-gray-300'
             }`}>
-              <div className="h-[300px] sm:h-[400px] md:h-[500px] lg:h-[600px] w-full">
+              <div className=" w-full">
                 {stockData ? (
-                  <StockChart data={stockData} ticker={ticker} />
+                  <StockChart data={stockData} ticker={submittedTicker} />
                 ) : (
                   <p className={`text-center text-sm sm:text-base ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                     Stock price chart will appear here
@@ -192,18 +194,25 @@ function App() {
             <div>
               <div className="flex justify-between items-center mb-3 sm:mb-4">
                 <h2 className={`text-lg sm:text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Related News Articles</h2>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className={`rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm ${
-                    isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'
-                  }`}
-                >
-                  <option value="all">All Sentiments</option>
-                  <option value="positive">Positive</option>
-                  <option value="neutral">Neutral</option>
-                  <option value="negative">Negative</option>
-                </select>
+                <div className="relative mr-4">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className={`appearance-none rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm pl-1 ${
+                      isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'
+                    }`}
+                  >
+                    <option value="all">All Sentiments</option>
+                    <option value="positive">Positive</option>
+                    <option value="neutral">Neutral</option>
+                    <option value="negative">Negative</option>
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2">
+                    <svg className={`h-4 w-4 ${isDark ? 'text-gray-300' : 'text-gray-500'}`} viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
+                    </svg>
+                  </div>
+                </div>
               </div>
               <div className="space-y-3 sm:space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                 {newsData
