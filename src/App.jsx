@@ -8,6 +8,7 @@ function App() {
   const [isDark, setIsDark] = useState(true)
   const [tickerInput, setTickerInput] = useState('')
   const [submittedTicker, setSubmittedTicker] = useState('')
+  //const [submittedDate, setSubmittedDate] = useState(null)
   const [date, setDate] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState({ ticker: '', date: '' })
@@ -24,6 +25,13 @@ function App() {
     }
     if (!date) {
       newErrors.date = 'Date is required'
+    } else {
+      const selectedDate = new Date(date)
+      const today = new Date()
+      
+      if (selectedDate > today) {
+        newErrors.date = 'Cannot select a future date'
+      }
     }
 
     if (newErrors.ticker || newErrors.date) {
@@ -73,16 +81,16 @@ function App() {
         sentimentLabel: sentimentScores[0][i].label,
         sentimentConfidence: sentimentScores[0][i].score
       })).sort((a, b) => b.sentimentConfidence - a.sentimentConfidence));
-      // remove any previous errors
-      setErrors({ ticker: '', date: '' });
+      setErrors({ ticker: '', date: '' }); // remove any previous errors
+      setSubmittedTicker(tickerInput) // set submitted ticker
+      // setSubmittedDate(date) // set submitted date
     } catch (error) {
       console.error('Error:', error)
       setErrors(prev => ({
         ...prev,
-        ticker: error.message || 'Error fetching data. Please check the ticker symbol.'
+        ticker: 'Error fetching data. Please check the ticker symbol.'
       }))
     } finally {
-      setSubmittedTicker(tickerInput)
       setIsLoading(false)
     }
   }
@@ -198,7 +206,7 @@ function App() {
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
-                    className={`appearance-none rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm pl-1 ${
+                    className={`appearance-none rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm pr-7 pl-1 ${
                       isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'
                     }`}
                   >
@@ -207,7 +215,7 @@ function App() {
                     <option value="neutral">Neutral</option>
                     <option value="negative">Negative</option>
                   </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2">
+                  <div className="pointer-events-none absolute inset-y-0 right-0 mt-1 flex items-center px-2">
                     <svg className={`h-4 w-4 ${isDark ? 'text-gray-300' : 'text-gray-500'}`} viewBox="0 0 16 16" fill="currentColor">
                       <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
                     </svg>
@@ -215,8 +223,8 @@ function App() {
                 </div>
               </div>
               <div className="space-y-3 sm:space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                {newsData
-                  .filter(article => sortBy === 'all' || article.sentimentLabel === sortBy)
+                {newsData.length>0 ?
+                  newsData.filter(article => sortBy === 'all' || article.sentimentLabel === sortBy)
                   .sort((a, b) => b.sentimentConfidence - a.sentimentConfidence)
                   .map((article, index) => (
                     <div 
@@ -255,7 +263,14 @@ function App() {
                       </div>
                     </div>
                   ))
-                }
+                : submittedTicker!== '' 
+                    ? 
+                    <div className={`text-center py-8 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      <p className="text-lg font-medium mb-2">No News Available</p>
+                      <p className="text-sm">There are no news articles available for {submittedTicker} on {date ? new Date(date).toLocaleDateString() : 'the selected date'}.</p>
+                    </div>
+              :null
+              }
               </div>
             </div>
           </div>

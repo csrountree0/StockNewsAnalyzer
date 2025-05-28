@@ -9,6 +9,9 @@ const StockChart = ({ data, ticker }) => {
   useEffect(() => {
     if (!data || data.length === 0) return;
 
+    // shorten data to 30days
+    data = data.slice(0,30)
+
     // remove existing chart if it exists
     if (chartInstance.current) {
       chartInstance.current.destroy();
