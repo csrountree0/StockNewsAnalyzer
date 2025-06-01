@@ -8,11 +8,12 @@ function App() {
   const [isDark, setIsDark] = useState(true)
   const [tickerInput, setTickerInput] = useState('')
   const [submittedTicker, setSubmittedTicker] = useState('')
-  //const [submittedDate, setSubmittedDate] = useState(null)
   const [date, setDate] = useState('')
+  const [timeRange, setTimeRange] = useState('week')
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState({ ticker: '', date: '' })
   const [stockData, setStockData] = useState(null)
+  const [displayData, setDisplayData] = useState(null)
   const [newsData, setNewsData] = useState([])
   const [sortBy, setSortBy] = useState('all')
 
@@ -41,24 +42,21 @@ function App() {
 
     setIsLoading(true)
     try {
-      // calculate date ranges
       const endDate = new Date(date)
       const startDate = new Date(date)
-      startDate.setDate(startDate.getDate() - 5) // get price 5 days prior for better visualization
+      startDate.setFullYear(startDate.getFullYear() - 1)
       const oneYearLater = new Date(date)
       oneYearLater.setFullYear(oneYearLater.getFullYear() + 1)
 
-      // fetch stock prices and news
       const [stockResult, newsResult] = await Promise.all([
         fetchStockPrice(tickerInput, startDate, oneYearLater),
         fetchNews(tickerInput, endDate, endDate)
       ]);
 
+      setStockData(stockResult)
+      setDisplayData(stockResult.slice(0, 7))
+
       // fetch sentiment scores for each article
-      /*
-         Since i dont have access to the full article i just use
-         the headline and summary
-      */
       const inputs = newsResult.map(article => `${article.headline} ${article.summary}`);
       const sentimentResponse = await fetch('https://snahelper.colbyr416-927.workers.dev/api/sentiment', {
         method: 'POST',
@@ -73,9 +71,6 @@ function App() {
       let sentimentScores = await sentimentResponse.json();
       sentimentScores = JSON.parse(JSON.stringify(sentimentScores));
 
-
-      setStockData(stockResult)
-      // add 2 new elements for the label and score and sort them by confidence
       setNewsData(newsResult.map((article, i) => ({
         ...article,
         sentimentLabel: sentimentScores[0][i].label,
@@ -83,7 +78,6 @@ function App() {
       })).sort((a, b) => b.sentimentConfidence - a.sentimentConfidence));
       setErrors({ ticker: '', date: '' }); // remove any previous errors
       setSubmittedTicker(tickerInput) // set submitted ticker
-      // setSubmittedDate(date) // set submitted date
     } catch (error) {
       console.error('Error:', error)
       setErrors(prev => ({
@@ -93,6 +87,28 @@ function App() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleTimeRangeChange = (newRange) => {
+    setTimeRange(newRange)
+    if (!stockData) return
+
+    let sliceLength
+    switch(newRange) {
+      case 'week':
+        sliceLength = 7
+        break
+      case 'month':
+        sliceLength = 30
+        break
+      case 'year':
+        sliceLength = stockData.length
+        break
+      default:
+        sliceLength = 7
+    }
+
+    setDisplayData(stockData.slice(0, sliceLength))
   }
 
   return (
@@ -187,9 +203,24 @@ function App() {
             <div className={`border-2 border-dashed rounded-lg ${
               isDark ? 'border-gray-600' : 'border-gray-300'
             }`}>
-              <div className=" w-full">
-                {stockData ? (
-                  <StockChart data={stockData} ticker={submittedTicker} />
+              <div className="w-full">
+                {displayData ? (
+                  <div>
+                    <div className="flex justify-end mb-2">
+                      <select
+                        value={timeRange}
+                        onChange={(e) => handleTimeRangeChange(e.target.value)}
+                        className={`appearance-none rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm pr-7 pl-1 ${
+                          isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'
+                        }`}
+                      >
+                        <option value="week">1 Week</option>
+                        <option value="month">1 Month</option>
+                        <option value="year">1 Year</option>
+                      </select>
+                    </div>
+                    <StockChart data={displayData} ticker={submittedTicker} />
+                  </div>
                 ) : (
                   <p className={`text-center text-sm sm:text-base ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                     Stock price chart will appear here
@@ -267,7 +298,7 @@ function App() {
                     ? 
                     <div className={`text-center py-8 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                       <p className="text-lg font-medium mb-2">No News Available</p>
-                      <p className="text-sm">There are no news articles available for {submittedTicker} on {date ? new Date(date).toLocaleDateString() : 'the selected date'}.</p>
+                      <p className="text-sm">There are no news articles available for {submittedTicker} on {date ? new Date(new Date(date).getTime() + 86400000).toLocaleDateString() : 'the selected date'}.</p>
                     </div>
               :null
               }
