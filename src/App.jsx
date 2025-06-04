@@ -44,10 +44,9 @@ function App() {
     try {
       const endDate = new Date(date)
       const startDate = new Date(date)
-      startDate.setFullYear(startDate.getFullYear() - 1)
+      startDate.setFullYear(startDate.getFullYear())
       const oneYearLater = new Date(date)
       oneYearLater.setFullYear(oneYearLater.getFullYear() + 1)
-
       const [stockResult, newsResult] = await Promise.all([
         fetchStockPrice(tickerInput, startDate, oneYearLater),
         fetchNews(tickerInput, endDate, endDate)
